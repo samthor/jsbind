@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>HTML Site</title>
+  <meta name="viewport" content="width=device-width, user-scalable=no" />
+  <script src="node_modules/proxy-polyfill/proxy.min.js"></script>
+  <script src="jsbind.min.js"></script>
+</head>
+<body>
+
+  <template id="test">
+<div>
+  <h1>Hello, {{there}}, {{tester}}</h1>
+  <div>
+    <strong style$="style">strong {{value}} tail data</strong> is rad
+    <em>car model: {{carz.model}}</em>
+  </div>
+</div>
+  </template>
+
+<div id="holder">
+</div>
+
+<script>
+
+  function observe(o, fn) {
+    function buildProxy(prefix, o) {
+      return new Proxy(o, {
+        set(target, property, value) {
+          // same as before, but add prefix
+          fn(prefix + property, value);
+          target[property] = value;
+
+          // TODO: setting data.object = {value: 1}; doesn't trigger data.object.value
+        },
+        get(target, property) {
+          // return a new proxy if possible, add to prefix
+          var out = target[property];
+          if (out instanceof Object) {
+            return buildProxy(prefix + property + '.', out);
+          }
+          return out;  // primitive, ignore
+        },
+      });
+    }
+
+    return buildProxy('', o);
+  }
+
+  var data = {
+    car: {
+      model: 'Holden'
+    },
+    there: 'Sam',
+    tester: 'you can test now',
+    value: '<em>and classy</em>',
+    style: 'color: red'
+  };
+  var out = JSBind(test, data);
+  holder.appendChild(out.root);
+
+  var p = observe(data, out.update);
+
+</script>
+
+</body>
+</html>
