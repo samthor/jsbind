@@ -57,13 +57,11 @@
           atIndex = re.lastIndex;  // step over match
         }
 
-        // TODO: using a fake text node doesn't work in Safari, it coalesces them.
-        // const node = appendTextNode('');
-        const node = document.createElement('jsbind-node');
+        const node = appendTextNode('');
         fragment.appendChild(node);
         addBinding(match[1], bindTextContent.bind(node));
       }
-      re.lastIndex = null;
+      re.lastIndex = NaN;  // nb. Safari doesn't like -1
       if (!atIndex) {
         return null;  // don't do anything, no matches
       }
