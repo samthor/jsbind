@@ -4,7 +4,7 @@
   <title>HTML Site</title>
   <meta name="viewport" content="width=device-width, user-scalable=no" />
   <script src="node_modules/proxy-polyfill/proxy.min.js"></script>
-  <script src="jsbind.min.js"></script>
+  <script src="jsbind.js"></script>
 </head>
 <body>
 
@@ -14,6 +14,10 @@
   <div>
     <strong style$="style">strong {{value}} tail data</strong> is rad
     <em>car model: {{carz.model}}</em>
+    <div>
+      first stuff: {{stuff.0}},
+      second stuff: {{stuff.1}}
+    </div>
   </div>
 </div>
   </template>
@@ -51,6 +55,10 @@
     car: {
       model: 'Holden'
     },
+    stuff: [
+      'first',
+      'second'
+    ],
     there: 'Sam',
     tester: 'you can test now',
     value: '<em>and classy</em>',
