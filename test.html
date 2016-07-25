@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <title>HTML Site</title>
+  <title>JSBind test</title>
   <meta name="viewport" content="width=device-width, user-scalable=no" />
   <script src="node_modules/proxy-polyfill/proxy.min.js"></script>
   <script src="jsbind.js"></script>
@@ -68,6 +68,23 @@
   holder.appendChild(out.root);
 
   var p = observe(data, out.update);
+
+</script>
+
+<template id="t">
+  <h2 class$="cl">Hello, {{name}}</h2>
+  <div>Name length: {{name.length}}</div>
+</template>
+<script>
+  var data = {
+    cl: 'some-class-name',
+    name: 'Sam'
+  };
+  var out = JSBind(t, data);
+  holder.appendChild(out.root);
+
+  // now, you can call update to update the DOM.
+  out.update('name', 'James');
 
 </script>
 
