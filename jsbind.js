@@ -110,7 +110,7 @@
       const parts = k.split('.');
       let curr = opt_data;
       while (parts.length) {
-        if (typeof curr !== 'object') {
+        if (typeof curr !== 'object' && (curr == null || !parts.length)) {
           break;
         }
         curr = curr[parts.shift()] || '';
