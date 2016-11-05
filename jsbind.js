@@ -59,6 +59,28 @@
     arr.push(helper);
   }
 
+  /**
+   * Node in the JSBind update tree.
+   */
+  class Node {
+    constructor() {
+      this.children = {};
+      this.helpers = [];
+    }
+
+    child(x) {
+      let out = this.children[x];
+      if (!out) {
+        out = this.children[x] = new Node();
+      }
+      return out;
+    }
+
+    update(value) {
+      this.helpers.forEach(helper => helper(value));
+    }
+  }
+
   const re = new RegExp(/{{(.*?)}}/g);
 
   /**
@@ -138,22 +160,44 @@
       }
     }
 
+    // Builds mapNodes and the tree of updatable nodes in this JSBind.
+    const rootNode = new Node();
+    const mapNodes = {'': rootNode};
     for (let k in binding) {
-      // parses opt_data and converts to 'foo.bar' property syntax
-      const parts = k.split('.');
-      let curr = opt_data;
-      while (parts.length) {
-        if (typeof curr !== 'object' && (curr == null || !parts.length)) {
-          break;
-        }
-        curr = curr[parts.shift()] || '';
+      const more = k.split('.');
+      const flatKey = [];
+
+      let node = rootNode;
+      while (more.length) {
+        const next = more.shift();
+        flatKey.push(next);
+        node = node.child(next);
+        mapNodes[flatKey.join('.')] = node;
       }
-      binding[k].forEach(helper => helper(curr));
+      node.helpers.push(...binding[k]);
     }
 
+    /**
+     * @param {string} k to update at
+     * @param {*} value to update with
+     */
     function update(k, value) {
-      (binding[k] || []).forEach(helper => helper(value));
+      const first = mapNodes[k || ''];
+      if (!first) { return; }  // invalid target
+
+      const pending = [{node: first, value}];
+      while (pending.length) {
+        const {node, value} = pending.shift();
+        node.update(value);
+
+        for (let k in node.children) {
+          const nextValue = (value === null || value === undefined ? undefined : value[k]);
+          pending.push({node: node.children[k], value: nextValue});
+        }
+      }
     }
+
+    update('', opt_data);
     return {root: outer, update};
   };
 }(window));

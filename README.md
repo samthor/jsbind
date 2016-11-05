@@ -16,11 +16,11 @@ Usage-
   var out = JSBind(t, data);
   holder.appendChild(out.root);
 
-  // Now, you can call update to update the DOM.
+  // Now, you can call update to update the DOM. This will update all descendents, such
+  // as `name.length`.
   out.update('name', 'Jim');
 
-  // However, note that the `name.length` attribute won't be updated: each key needs to be
-  // triggered uniquely.
+  // You can also update properties to types which aren't expected.
   out.update('name.length', 'Not really a length');
 
 </script>
@@ -35,4 +35,3 @@ Possible additions-
 * Better attribute syntax (Polymer always uses `foo$="{{bar}}"`, we only support `foo$="bar"`)
 * Two-way attribute binding (e.g., `[[foo]]` as well as `{{foo}}`)
 * Property binding (e.g., `.hidden` not `hidden=""`)
-* Descendant key triggering (e.g., update 'foo' with an object, should propagate to all under, e.g., 'foo.bar').
