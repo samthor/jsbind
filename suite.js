@@ -75,4 +75,10 @@ void function() {
     assert.equal(node.innerHTML, '<div id="value">1</div>');
   });
 
+  test('test array  ', function() {
+    const out = JSBind('<js:with each="x"><div>value: {{}}</div></js:with>', {x: [1, 2, 3]});
+    const node = createNode(out);
+    assert.equal(node.innerHTML, '<js:></js:><div>value: 1</div><div>value: 2</div><div>value: 3</div>');
+  });
+
 }();

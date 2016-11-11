@@ -128,6 +128,60 @@
     const pending = [node];
     let n;
     while ((n = pending.shift())) {
+      if (n.localName && n.localName.startsWith('js:')) {
+        const code = n.localName.substr(3);
+        if (code !== 'with') {
+          throw new Error('unhandled: ' + n.localName)
+        }
+
+        const template = n;
+        const placeholder = document.createElement('js:');
+        n.parentNode.replaceChild(placeholder, n);
+
+        const factory = function(value) {
+          const localBinding = {};
+          const root = template.cloneNode(true);
+          const fragment = document.createDocumentFragment();
+          while (root.childNodes.length) {
+            fragment.appendChild(root.childNodes[0]);
+          }
+          convertNode(fragment, localBinding);
+
+          // TODO(samthor): This is just a quick demo. But loops now cause our binding state to
+          // be mutable(-ish) over time.
+          // QQ: Do we care about 'items.0.foo'? Can just 'items' be notified?
+          // AA: I think we want specific notification. And ignore the idea that we're an array...
+          // basically 'items' becomes parent to a keyed object. You can poke any key under that.
+          // 'items.banana' being poked => creates/removes banana (undefined or not).
+          // If you poke the whole thing, items, recreate whole thing. Look at length etc.
+          if ('' in localBinding) {
+            localBinding[''].forEach(fn => fn(value));
+          }
+          return fragment;
+        };
+        const groups = [];
+
+        bindingPush(binding, n.getAttribute('each'), function(array) {
+          while (groups.length) {
+            const group = groups.shift();
+            group.forEach(node => node.remove());
+          }
+
+          let lastNode = placeholder;
+          array.forEach(value => {
+            const fragment = factory(value);
+            const group = [...fragment.childNodes];
+            placeholder.parentNode.insertBefore(fragment, lastNode.nextSibling);
+            if (group.length) {
+              lastNode = group[group.length - 1];
+            }
+            groups.push(group);
+          });
+        });
+
+        continue;
+      }
+
       pending.push(...n.childNodes);
 
       if (n instanceof Text) {

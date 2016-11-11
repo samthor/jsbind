@@ -71,7 +71,7 @@
 
 </script>
 
-<template id="t">
+<template id="t2">
   <h2 class$="cl">Hello, {{name}}</h2>
   <div>Name length: {{name.length}}</div>
 </template>
@@ -80,11 +80,28 @@
     cl: 'some-class-name',
     name: 'Sam'
   };
-  var out = JSBind(t, data);
+  var out = JSBind(t2, data);
   holder.appendChild(out.root);
 
   // now, you can call update to update the DOM.
   out.update('name', 'James');
+</script>
+
+<template id="t3">
+    <h2>Items {{items.length}}</h2>
+    <js:with each="items">
+      * Item {{}}<br />
+    </js:with>
+</template>
+<script>
+  var data = {
+    items: [4,5,6],
+  };
+  var out = JSBind(t3, data);
+  holder.appendChild(out.root);
+
+  // now, you can call update to update the DOM.
+  out.update('items', [7,8,9,10]);
 
 </script>
 
