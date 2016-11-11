@@ -1,0 +1,24 @@
+{
+  "name": "jsbind",
+  "main": "jsbind.min.js",
+  "homepage": "https://github.com/samthor/jsbind",
+  "description": "Generates HTML binding helpers",
+  "moduleType": [
+    "globals"
+  ],
+  "keywords": [
+    "html5"
+  ],
+  "license": "Apache2",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "devDependencies": {
+    "mocha": "",
+    "chai": ""
+  }
+}
