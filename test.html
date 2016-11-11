@@ -1,92 +1,33 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-  <title>JSBind test</title>
-  <meta name="viewport" content="width=device-width, user-scalable=no" />
-  <script src="node_modules/proxy-polyfill/proxy.min.js"></script>
-  <script src="jsbind.js"></script>
-</head>
-<body>
-
-  <template id="test">
-<div>
-  <h1>Hello, {{there}}, {{tester}}</h1>
-  <div>
-    <strong style$="style">strong {{value}} tail data</strong> is rad
-    <em>car model: {{carz.model}}</em>
-    <div>
-      first stuff: {{stuff.0}},
-      second stuff: {{stuff.1}}
-    </div>
-  </div>
-</div>
-  </template>
-
-<div id="holder">
-</div>
-
+<meta charset="UTF-8" />
+<link rel="stylesheet" href="bower_components/mocha/mocha.css" />
+<script src="bower_components/mocha/mocha.js"></script>
+<script src="bower_components/chai/chai.js"></script>
+<script src="jsbind.js"></script>
 <script>
 
-  function observe(o, fn) {
-    function buildProxy(prefix, o) {
-      return new Proxy(o, {
-        set(target, property, value) {
-          // same as before, but add prefix
-          fn(prefix + property, value);
-          target[property] = value;
+var assert = chai.assert;
+mocha.setup({ ui: 'tdd' });
 
-          // TODO: setting data.object = {value: 1}; doesn't trigger data.object.value
-        },
-        get(target, property) {
-          // return a new proxy if possible, add to prefix
-          var out = target[property];
-          if (out instanceof Object) {
-            return buildProxy(prefix + property + '.', out);
-          }
-          return out;  // primitive, ignore
-        },
+(function() {
+  var pageError = null;
+
+  window.addEventListener('error', function(event) {
+    pageError = event.filename + ':' + event.lineno + ' ' + event.message;
+  });
+
+  window.addEventListener('load', function() {
+    if (pageError) {
+      suite('page-script-errors', function() {
+        test('no script errors on page', function() {
+          assert.fail(null, null, pageError);
+        });
       });
     }
-
-    return buildProxy('', o);
-  }
-
-  var data = {
-    carz: {
-      model: 'Holden'
-    },
-    stuff: [
-      'first',
-      'second'
-    ],
-    there: 'Sam',
-    tester: 'you can test now',
-    value: '<em>and classy</em>',
-    style: 'color: red'
-  };
-  var out = JSBind(test, data);
-  holder.appendChild(out.root);
-
-  var p = observe(data, out.update);
+    mocha.run();
+  });
+})();
 
 </script>
-
-<template id="t">
-  <h2 class$="cl">Hello, {{name}}</h2>
-  <div>Name length: {{name.length}}</div>
-</template>
-<script>
-  var data = {
-    cl: 'some-class-name',
-    name: 'Sam'
-  };
-  var out = JSBind(t, data);
-  holder.appendChild(out.root);
-
-  // now, you can call update to update the DOM.
-  out.update('name', 'James');
-
-</script>
-
-</body>
-</html>
+<div id="mocha"></div>
+<script src="suite.js"></script>
