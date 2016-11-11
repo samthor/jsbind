@@ -85,10 +85,10 @@
 
   /**
    * @param {string} text of HTML nodes to generate bindings for
-   * @param {!Object<!Array<function<string>>}
+   * @param {!Object<!Array<function<string>>} binding
    * @return {Node}
    */
-  function convert(text, binding) {
+  function convertTextNode(text, binding) {
     const fragment = document.createDocumentFragment();
     function appendTextNode(text) {
       const node = document.createTextNode(text);
@@ -121,23 +121,18 @@
   }
 
   /**
-   * @param {(HTMLElement|string)} code
-   * @param {*=} opt_data
-   * @return {{root: !Node, update: function(string, *)}}
+   * @param {!Node} node to generate bindings for
+   * @param {!Object<!Array<function<string>>} binding
    */
-  scope['JSBind'] = function(code, opt_data) {
-    const binding = {};
-
-    // Traverse the entire DOM, finding insertion points.
-    const outer = getOuter(code);
-    const pending = [outer];
+  function convertNode(node, binding) {
+    const pending = [node];
     let n;
     while ((n = pending.shift())) {
       pending.push(...n.childNodes);
 
       if (n instanceof Text) {
         // TODO: matches e.g. any HTMLElement, although doesn't do anything
-        const out = convert(n.wholeText, binding);
+        const out = convertTextNode(n.wholeText, binding);
         if (out) {
           n.parentNode.replaceChild(out, n);
         }
@@ -159,6 +154,19 @@
         }
       }
     }
+  }
+
+  /**
+   * @param {(HTMLElement|string)} code
+   * @param {*=} opt_data
+   * @return {{root: !Node, update: function(string, *)}}
+   */
+  scope['JSBind'] = function(code, opt_data) {
+    const binding = {};
+
+    // Traverse the entire DOM, finding insertion points.
+    const outer = getOuter(code);
+    convertNode(outer, binding);
 
     // Builds mapNodes and the tree of updatable nodes in this JSBind.
     const rootNode = new Node();
