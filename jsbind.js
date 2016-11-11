@@ -40,8 +40,8 @@
     const fragment = document.createDocumentFragment();
     const holder = document.createElement('div');
     holder.innerHTML = code;
-    while (holder.children.length) {
-      fragment.appendChild(holder.children[0]);
+    while (holder.childNodes.length) {
+      fragment.appendChild(holder.childNodes[0]);
     }
     return fragment;
   }
@@ -96,7 +96,7 @@
       return node;
     }
 
-    let atIndex = 0;
+    let atIndex = -1;
     let match;
     while ((match = re.exec(text)) !== null) {
       if (match.index > atIndex) {
