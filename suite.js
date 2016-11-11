@@ -20,8 +20,16 @@ void function() {
     assert.equal(node.innerHTML, 'Test: Bob');
     out.update('name', 'Sam');
     assert.equal(node.innerHTML, 'Test: Sam');
-    out.update('', {'name': 'Jim'})
+    out.update('', {'name': 'Jim'});
     assert.equal(node.innerHTML, 'Test: Jim');
+  });
+
+  test('zero bind', function() {
+    const out = JSBind('Test: {{}}', 'Value');
+    const node = createNode(out);
+    assert.equal(node.innerHTML, 'Test: Value');
+    out.update('', 'Sam');
+    assert.equal(node.innerHTML, 'Test: Sam');
   });
 
   test('multiple updates', function() {
