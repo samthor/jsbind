@@ -78,7 +78,7 @@ void function() {
   test('test array', function() {
     const out = JSBind('<template each="x"><div>value: {{}}</div></template>', {x: [1, 2, 3]});
     const node = createNode(out);
-    assert.equal(node.innerHTML, '<js:></js:><div>value: 1</div><div>value: 2</div><div>value: 3</div>');
+    assert.equal(node.innerHTML, '<!----><div>value: 1</div><div>value: 2</div><div>value: 3</div>');
   });
 
 }();
