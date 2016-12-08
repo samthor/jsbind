@@ -148,7 +148,7 @@
     const pending = [node];
     let n;
     while ((n = pending.shift())) {
-      if (n.localName === 'template') {
+      if (n instanceof HTMLTemplateElement) {
         if (n.getAttribute('each') === null) {
           throw new Error('unhandled: ' + n.localName);
         }
@@ -204,16 +204,13 @@
       pending.push(...n.childNodes);
 
       if (n instanceof Text) {
-        // TODO: matches e.g. any HTMLElement, although doesn't do anything
         const out = convertTextNode(n.wholeText, binding);
         if (out) {
           n.parentNode.replaceChild(out, n);
         }
-      }
-
-      if ('attributes' in n) {
+      } else if (n instanceof Element) {
         const found = fetchBoundAttributes(n);
-        for (let attr in found) {
+        for (const attr in found) {
           bindingPush(binding, found[attr], bindAttribute.bind(n.attributes[attr]));
         }
       }
