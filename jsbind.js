@@ -1,8 +1,6 @@
 'use strict';
 
 (function(scope) {
-//  const nodeProto = document.registerElement('jsbind-node');
-
   /**
    * @param {string} value
    * @this {Attr}
@@ -17,6 +15,28 @@
    */
   function bindTextContent(value) {
     this.textContent = value;
+  }
+
+  /**
+   * Fetches and clears the bound attributes from the passed Element.
+   *
+   * @param {!Element} el to process
+   * @return {!Object<string>} map of bound attribute to literal bound value
+   */
+  function fetchBoundAttributes(el) {
+    // TODO: looks for attr$="bound", but Polymer uses attr$="{{bound}}" syntax
+    const found = {};
+    for (let i = 0, curr; curr = el.attributes[i]; ++i) {
+      if (curr.name.substring(curr.name.length - 1) === '$') {
+        const attr = curr.name.substr(0, curr.name.length - 1);
+        found[attr] = curr.value;
+      }
+    }
+    for (const attr in found) {
+      el.removeAttribute(attr + '$');
+      el.setAttribute(attr, '');
+    }
+    return found;
   }
 
   /**
@@ -191,18 +211,9 @@
         }
       }
 
-      // TODO: looks for attr$="bound", but Polymer uses attr$="{{bound}}" syntax
       if ('attributes' in n) {
-        const found = {};
-        for (let i = 0, curr; curr = n.attributes[i]; ++i) {
-          if (curr.name.substring(curr.name.length - 1) == '$') {
-            const attr = curr.name.substr(0, curr.name.length - 1);
-            found[attr] = curr.value;
-          }
-        }
-        for (const attr in found) {
-          n.removeAttribute(attr + '$');
-          n.setAttribute(attr, '');
+        const found = fetchBoundAttributes(n);
+        for (let attr in found) {
           bindingPush(binding, found[attr], bindAttribute.bind(n.attributes[attr]));
         }
       }
