@@ -128,19 +128,18 @@
     const pending = [node];
     let n;
     while ((n = pending.shift())) {
-      if (n.localName && n.localName.startsWith('js:')) {
-        const code = n.localName.substr(3);
-        if (code !== 'with') {
-          throw new Error('unhandled: ' + n.localName)
+      if (n.localName === 'template') {
+        if (n.getAttribute('each') === null) {
+          throw new Error('unhandled: ' + n.localName);
         }
 
         const template = n;
-        const placeholder = document.createElement('js:');
+        const placeholder = document.createComment('');
         n.parentNode.replaceChild(placeholder, n);
 
         const factory = function(value) {
           const localBinding = {};
-          const root = template.cloneNode(true);
+          const root = template.content.cloneNode(true);
           const fragment = document.createDocumentFragment();
           while (root.childNodes.length) {
             fragment.appendChild(root.childNodes[0]);

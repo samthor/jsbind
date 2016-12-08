@@ -89,9 +89,9 @@
 
 <template id="t3">
     <h2>Items {{items.length}}</h2>
-    <js:with each="items">
+    <template each="items">
       * Item {{}}<br />
-    </js:with>
+    </template>
 </template>
 <script>
   var data = {
