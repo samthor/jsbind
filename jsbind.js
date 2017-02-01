@@ -40,14 +40,15 @@
   }
 
   /**
-   * Convert the passed argument to JSBind to an outer element.
+   * Normalizes and copies the passed argument to be a real, useful outer Node containing live DOM. 
+   * This is just a helper for user input of strings or other HTML elements.
    *
    * @param {(HTMLElement|string)} code HTMLElement, HTMLTemplateElement or string for innerHTML
    * @return {!Node}
    */
   function getOuter(code) {
     if (code instanceof HTMLTemplateElement) {
-      return document.importNode(code.content, true);
+      return document.importNode(code.content, true) || document.createDocumentFragment();
     } else if (code instanceof HTMLElement) {
       return document.cloneNode(true);
     }
@@ -67,7 +68,7 @@
   }
 
   /**
-   * @param {!Object<!Array<function(string)>>}
+   * @param {!Object<!Array<function(string)>>} binding
    * @param {string} key
    * @param {function(string)} helper
    */
@@ -82,7 +83,7 @@
   /**
    * Node in the JSBind update tree.
    */
-  class Node {
+  class JSBindNode {
     constructor() {
       this.children = {};
       this.helpers = [];
@@ -91,7 +92,7 @@
     child(x) {
       let out = this.children[x];
       if (!out) {
-        out = this.children[x] = new Node();
+        out = this.children[x] = new JSBindNode();
       }
       return out;
     }
@@ -105,7 +106,7 @@
 
   /**
    * @param {string} text of HTML nodes to generate bindings for
-   * @param {!Object<!Array<function<string>>} binding
+   * @param {!Object<!Array<function(string)>>} binding
    * @return {Node}
    */
   function convertTextNode(text, binding) {
@@ -142,7 +143,7 @@
 
   /**
    * @param {!Node} node to generate bindings for
-   * @param {!Object<!Array<function<string>>} binding
+   * @param {!Object<!Array<function(string)>>} binding
    */
   function convertNode(node, binding) {
     const pending = [node];
@@ -230,7 +231,7 @@
     convertNode(outer, binding);
 
     // Builds mapNodes and the tree of updatable nodes in this JSBind.
-    const rootNode = new Node();
+    const rootNode = new JSBindNode();
     const mapNodes = {'': rootNode};
     for (let k in binding) {
       const more = k.split('.');
