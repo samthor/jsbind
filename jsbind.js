@@ -46,7 +46,7 @@
    * @param {(HTMLElement|string)} code HTMLElement, HTMLTemplateElement or string for innerHTML
    * @return {!Node}
    */
-  function getOuter(code) {
+  function consumeUserInput(code) {
     if (code instanceof HTMLTemplateElement) {
       return document.importNode(code.content, true) || document.createDocumentFragment();
     } else if (code instanceof HTMLElement) {
@@ -107,7 +107,7 @@
   /**
    * @param {string} text of HTML nodes to generate bindings for
    * @param {!Object<!Array<function(string)>>} binding
-   * @return {Node}
+   * @return {DocumentFragment}
    */
   function convertTextNode(text, binding) {
     const fragment = document.createDocumentFragment();
@@ -227,7 +227,7 @@
     const binding = {};
 
     // Traverse the entire DOM, finding insertion points.
-    const outer = getOuter(code);
+    const outer = consumeUserInput(code);
     convertNode(outer, binding);
 
     // Builds mapNodes and the tree of updatable nodes in this JSBind.
