@@ -28,22 +28,24 @@
     const each = template.getAttribute('each');
 
     function add(value, key) {
-      if (curr.has(key)) { return; }
+      let config = curr.get(key);
+      if (!config) {
+        const binding = new JSBindTemplateBuilder();
+        const frag = template.content.cloneNode(true);
+        convertNode(frag, binding, live);  // TODO: sub probably doesn't work (e.g. x.0.y.0)
 
-      const binding = new JSBindTemplateBuilder();
-      const frag = template.content.cloneNode(true);
-      convertNode(frag, binding, live);  // TODO: sub probably doesn't work (e.g. x.0.y.0)
+        config = {
+          binding,
+          outer: frag,
+          nodes: [...frag.childNodes],  // set before insertion and children disappearing
+        };
+        curr.set(key, config);
+        placeholder.parentNode.insertBefore(frag, placeholder);
 
-      const config = {
-        outer: frag,
-        nodes: [...frag.children],  // set before insertion and children disappearing
-      };
-      curr.set(key, config);
-      placeholder.parentNode.insertBefore(frag, placeholder);
+        live.set(frag, binding);
+      }
 
-      live.set(frag, {path: each + '.' + key, binding});
-
-      // TODO: value ignored, do we care?
+      config.binding.update('$', value);
     }
 
     function remove(key) {
@@ -51,6 +53,7 @@
       if (config) {
         curr.delete(key);
         live.delete(config.outer);
+        config.binding.update('$', null);  // tell children to disappear
         config.nodes.forEach(node => node.remove());
       }
     }
@@ -185,10 +188,14 @@
       while (more.length) {
         const next = more.shift();
         flatKey.push(next);
-
-        node = node.must(next);
-
         const key = flatKey.join('.');
+
+        if (!next.startsWith('$')) {
+          node = node.must(next);
+        } else {
+          node = this.all_[key] || new JSBindTemplateNode();  // start new root for $-prefix
+        }
+
         const prev = this.all_[key];
         if (prev !== undefined && prev !== node) {
           throw new Error('unexpected node in flat map: `' + key + '`');
@@ -363,21 +370,15 @@
 
     // Traverse the entire DOM, finding insertion points.
     convertNode(outer, binding, live);
-    live.set(outer, {path: '', binding});
+    live.set(outer, binding);
 
     /**
      * @param {string} k to update at
      * @param {*} value to update with
      */
     function update(k, value) {
-      live.forEach((config, node) => {
         // This always updates, because every outer can still have top-level args.
-
-        // TODO: always update, ignoring path: flat data inside map
-        // TODO: path could be e.g., "array.0", maybe?
-        config.binding.update(k, value);
-
-      });
+      live.forEach((binding, node) => binding.update(k, value));
     }
 
     update('', opt_data);

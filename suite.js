@@ -75,51 +75,79 @@ void function() {
     assert.equal(node.innerHTML, '<div id="value">1</div>');
   });
 
-  test('test array', function() {
-    const out = JSBind('<template each="x"><div>v{{y}}</div></template>', {x: [1, 2, 3], y: 100});
-    const node = createNode(out);
-    assert.equal(node.innerHTML, '<div>v100</div><div>v100</div><div>v100</div><!-- x -->');
+  suite('each', function() {
+    
+    test('test array', function() {
+      const out = JSBind('<template each="x"><div>v{{y}}</div></template>', {x: [1, 2, 3], y: 100});
+      const node = createNode(out);
+      assert.equal(node.innerHTML, '<div>v100</div><div>v100</div><div>v100</div><!-- x -->');
 
-    out.update('y', 200);
-    assert.equal(node.innerHTML, '<div>v200</div><div>v200</div><div>v200</div><!-- x -->');
+      out.update('y', 200);
+      assert.equal(node.innerHTML, '<div>v200</div><div>v200</div><div>v200</div><!-- x -->');
 
-    out.update('x', [1]);
-    out.update('y', 300);  // TODO: we shoudn't need to do this: keep "template" around.
-    assert.equal(node.innerHTML, '<div>v300</div><!-- x -->');
+      out.update('x', [1]);
+      out.update('y', 300);  // TODO: we shoudn't need to do this: keep "template" around.
+      assert.equal(node.innerHTML, '<div>v300</div><!-- x -->');
 
-    out.update('x', []);
-    assert.equal(node.innerHTML, '<!-- x -->');
-  });
+      out.update('x', []);
+      assert.equal(node.innerHTML, '<!-- x -->');
+    });
 
-  test('test nuke/add each', function() {
-    const out = JSBind('<template each="x"><div>v{{y}}</div></template>', {});
-    const node = createNode(out);
-    assert.equal(node.innerHTML, '<!-- x -->');
+    test('test nuke/add each', function() {
+      const out = JSBind('<template each="x"><div>v{{y}}</div></template>', {});
+      const node = createNode(out);
+      assert.equal(node.innerHTML, '<!-- x -->');
 
-    out.update('x.banana.zing', 1);
-    assert.equal(node.innerHTML, '<div>v</div><!-- x -->');
+      out.update('x.banana.zing', 1);
+      assert.equal(node.innerHTML, '<div>v</div><!-- x -->');
 
-    out.update('x.apple', 1);
-    assert.equal(node.innerHTML, '<div>v</div><div>v</div><!-- x -->');
+      out.update('x.apple', 1);
+      assert.equal(node.innerHTML, '<div>v</div><div>v</div><!-- x -->');
 
-    out.update('x.banana.whatever.ignored', 1);
-    assert.equal(node.innerHTML, '<div>v</div><div>v</div><!-- x -->');
+      out.update('x.banana.whatever.ignored', 1);
+      assert.equal(node.innerHTML, '<div>v</div><div>v</div><!-- x -->');
 
-    out.update('x.banana', null);
-    assert.equal(node.innerHTML, '<div>v</div><!-- x -->');
-  });
+      out.update('x.banana', null);
+      assert.equal(node.innerHTML, '<div>v</div><!-- x -->');
+    });
 
-  test('test map', function() {
-    const out = JSBind('<template each="x"><div>v{{y}}</div></template>', {});
-    const node = createNode(out);
-    assert.equal(node.innerHTML, '<!-- x -->');
+    test('test map', function() {
+      const out = JSBind('<template each="x"><div>v{{y}}</div></template>', {});
+      const node = createNode(out);
+      assert.equal(node.innerHTML, '<!-- x -->');
 
-    const map = new Map();
-    map.set(1, 2);
-    map.set(3, 4);
-    out.update('x', map);
+      const map = new Map();
+      map.set(1, 2);
+      map.set(3, 4);
+      out.update('x', map);
 
-    assert.equal(node.innerHTML, '<div>v</div><div>v</div><!-- x -->');
+      assert.equal(node.innerHTML, '<div>v</div><div>v</div><!-- x -->');
+    });
+
+    test('test values', function() {
+      const out = JSBind('<template each="x"><div>v{{$}}</div></template>', {x: ['X']});
+      const node = createNode(out);
+      assert.equal(node.innerHTML, '<div>vX</div><!-- x -->');
+
+      // TODO: this does work, but is it a bug? do we care?
+      out.update('$', 'WRONG');
+      assert.equal(node.innerHTML, '<div>vWRONG</div><!-- x -->');
+    });
+
+    test('test recurse', function() {
+      const data = {x: [
+        {name: 'Hello', stuff: [1,2,3]},
+        {name: 'There', stuff: [4,5,6]},
+      ]};
+      const out = JSBind('<template each="x"><div>{{$.name}}</div><template each="$.stuff">{{$}}<br /></template></template>', data);
+      const node = createNode(out);
+      assert.equal(node.innerHTML, '<div>Hello</div>1<br>2<br>3<br><!-- $.stuff --><div>There</div>4<br>5<br>6<br><!-- $.stuff --><!-- x -->');
+
+      out.update('x', [{name: 'What'}]);
+      assert.equal(node.innerHTML, '<div>What</div><!-- $.stuff --><!-- x -->');
+    });
+
+
   });
 
 }();
