@@ -18,6 +18,44 @@
   }
 
   /**
+   * @param {!HTMLTemplateElement} template
+   * @param {!Node} placeholder
+   * @param {!Map} live
+   * @return {function(*, string)}
+   */
+  function buildEach(template, placeholder, live) {
+    const curr = new Map();
+
+    return (value, key) => {
+      if (key === undefined) {
+        curr.forEach((nodes, curr) => {
+          live.delete(curr);
+          nodes.forEach(node => node.remove());
+        });
+        curr.clear();
+
+        const before = placeholder.nextSibling;
+        forEach(value, (_, k) => {
+          const binding = new JSBindTemplateBuilder();
+          const frag = template.content.cloneNode(true);
+          convertNode(frag, binding, live);  // TODO: sub probably doesn't work (e.g. x.0.y.0)
+
+          curr.set(frag, [...frag.children]);  // set before insertion and children disappearing
+          placeholder.parentNode.insertBefore(frag, before);
+
+          live.set(frag, {path: key + '.' + k, binding});
+        });
+      } else if (value == null) {
+        // thing clear
+        throw new Error('TODO: implement specific key clear');
+      } else {
+        // thing create/update
+        throw new Error('TODO: implement specific key implicit creation');
+      }
+    };
+  }
+
+  /**
    * Fetches and clears the bound attributes from the passed Element.
    *
    * @param {!Element} el to process
@@ -101,6 +139,12 @@
        * @type {!Object<!JSBindTemplateNode>}
        */
       this.all_ = {'': this.root};
+
+      // TODO: typedef/something function?
+      /**
+       * @type {!Object<function(string, *)>}
+       */
+      this.each_ = {};
     }
 
     /**
@@ -138,7 +182,11 @@
      */
     update(k, value) {
       const first = this.all_[k];
-      if (!first) { return; }  // invalid target
+      if (!first) {
+        // TODO: If this is e.g., "x.0.banana", and "x" is an each, autocreate "x.0".
+        // TODO: Use a regex (?) to make this matching faster, e.g. /^x\.\w+\./
+        return;  // invalid target
+      }
 
       const pending = [{node: first, value}];
       while (pending.length) {
@@ -193,21 +241,39 @@
   }
 
   /**
+   * @template T
+   * @param {(!Object<T>|!Map<string, T>|!Array<T>|null)} arg
+   * @param {function(T, string|number)} fn
+   */
+  function forEach(arg, fn) {
+    if (!arg) { return; }
+    if (typeof arg.forEach === 'function') {
+      arg.forEach(fn);
+    } else {
+      for (let k in arg) {
+        fn(arg[k], k);
+      }
+    }
+  }
+
+  /**
    * @param {!Node} node to generate bindings for
    * @param {!JSBindTemplateBuilder} binding
+   * @param {!Map<!Node, {path: string}>} live
    */
-  function convertNode(node, binding) {
+  function convertNode(node, binding, live) {
     const pending = [node];
     let n;
     while ((n = pending.shift())) {
       if (n instanceof HTMLTemplateElement) {
-        const placeholder = document.createComment(' template ');
-        n.parentNode.replaceChild(placeholder, n);
+        const each = n.getAttribute('each');
+        if (each === undefined) {
+          throw new Error('expected template each');
+        }
 
-        // TODO(samthor): Don't _do_ anything here. Just store it and apply later. Add to e.g...
-        //    Map<path, frag> ?
-        // Not sure how that works for subordinates. Maybe they have their own Map when instantiated.
-        // Instead of Frag, store a ListBuffer, which could also store spares.
+        const placeholder = document.createComment(' ' + each + ' ');
+        n.parentNode.replaceChild(placeholder, n);
+        binding.add(each, buildEach(n, placeholder, live));
         continue;
       }
 
@@ -233,16 +299,16 @@
    * @return {{root: !Node, update: function(string, *)}}
    */
   scope['JSBind'] = function(code, opt_data) {
-    const binding = new JSBindTemplateBuilder();
-
-    // Traverse the entire DOM, finding insertion points.
     const outer = cloneArgument(code);
-    convertNode(outer, binding);
 
     /**
      * @type {!Map<!Node, {path: string}>}
      */
-    const live = new Map();
+    const live = new Map();  // TODO: key isn't really used - just used as key (fragment!)
+    const binding = new JSBindTemplateBuilder(live);
+
+    // Traverse the entire DOM, finding insertion points.
+    convertNode(outer, binding, live);
     live.set(outer, {path: '', binding});
 
     /**
@@ -251,6 +317,8 @@
      */
     function update(k, value) {
       live.forEach((config, node) => {
+        // This always updates, because every outer
+
         // TODO: always update, ignoring path: flat data inside map
         // TODO: path could be e.g., "array.0", maybe?
         config.binding.update(k, value);

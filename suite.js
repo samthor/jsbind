@@ -76,9 +76,16 @@ void function() {
   });
 
   test('test array', function() {
-    const out = JSBind('<template each="x"><div>value: {{}}</div></template>', {x: [1, 2, 3]});
+    const out = JSBind('<template each="x"><div>v{{y}}</div></template>', {x: [1, 2, 3], y: 100});
     const node = createNode(out);
-    assert.equal(node.innerHTML, '<!----><div>value: 1</div><div>value: 2</div><div>value: 3</div>');
+    assert.equal(node.innerHTML, '<!-- x --><div>v100</div><div>v100</div><div>v100</div>');
+
+    out.update('y', 200);
+    assert.equal(node.innerHTML, '<!-- x --><div>v200</div><div>v200</div><div>v200</div>');
+
+    out.update('x', [1]);
+    out.update('y', 300);  // TODO: we shoudn't need to do this: keep "template" around.
+    assert.equal(node.innerHTML, '<!-- x --><div>v300</div>');
   });
 
 }();
