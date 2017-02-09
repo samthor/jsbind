@@ -132,8 +132,24 @@
       node.helpers.push(fn);
     }
 
-    get(k) {
-      return this.all_[k];
+    /**
+     * @param {string} k to update at
+     * @param {*} value to update with
+     */
+    update(k, value) {
+      const first = this.all_[k];
+      if (!first) { return; }  // invalid target
+
+      const pending = [{node: first, value}];
+      while (pending.length) {
+        const {node, value} = pending.shift();
+        node.run(value);
+
+        for (let k in node.children) {
+          const nextValue = (value === null || value === undefined ? undefined : value[k]);
+          pending.push({node: node.children[k], value: nextValue});
+        }
+      }
     }
   }
 
@@ -224,23 +240,21 @@
     convertNode(outer, binding);
 
     /**
+     * @type {!Map<!Node, {path: string}>}
+     */
+    const live = new Map();
+    live.set(outer, {path: '', binding});
+
+    /**
      * @param {string} k to update at
      * @param {*} value to update with
      */
     function update(k, value) {
-      const first = binding.get(k || '');
-      if (!first) { return; }  // invalid target
-
-      const pending = [{node: first, value}];
-      while (pending.length) {
-        const {node, value} = pending.shift();
-        node.run(value);
-
-        for (let k in node.children) {
-          const nextValue = (value === null || value === undefined ? undefined : value[k]);
-          pending.push({node: node.children[k], value: nextValue});
-        }
-      }
+      live.forEach((config, node) => {
+        // TODO: always update, ignoring path: flat data inside map
+        // TODO: path could be e.g., "array.0", maybe?
+        config.binding.update(k, value);
+      });
     }
 
     update('', opt_data);
