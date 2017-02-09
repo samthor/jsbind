@@ -48,7 +48,7 @@ Issues are around each templates, which are tricky.
 * top-level data inside an each template won't exist for new DOM nodes
   * ...it should update the `template` itself over time
 * only the value is accessible (via `$`)
-* it's impossible to access the parent of recursive each templates (`$` for my parent)
+* it's impossible to access the parent of recursive each templates (i.e., `$` for my parent)
 
 ### Possible Additions
 
