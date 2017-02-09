@@ -134,6 +134,15 @@ void function() {
       assert.equal(node.innerHTML, '<div>vWRONG</div><!-- x -->');
     });
 
+    test('test poke', function() {
+      const out = JSBind('<template each="x">{{$.length}},</template>', {x: {'0': 'a', '1': 'bb'}});
+      const node = createNode(out);
+      assert.equal(node.innerHTML, '1,2,<!-- x -->');
+
+      out.update('x.0.length', 100);
+      assert.equal(node.innerHTML, '100,2,<!-- x -->');
+    });
+
     test('test recurse', function() {
       const data = {x: [
         {name: 'Hello', stuff: [1,2,3]},

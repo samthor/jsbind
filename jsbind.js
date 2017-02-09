@@ -45,6 +45,7 @@
         live.add(binding);
       }
 
+      if (value === undefined) { return; }  // this is a poke-safe update
       config.binding.update('$', value);
     }
 
@@ -61,7 +62,8 @@
     return (value, key) => {
       if (key === undefined) {
         // This is a set of the each key directly, presumably with a new Map/Array etc.
-        // TODO(samthor): Don't nuke/recreate, try to maintain parity.
+        // TODO(samthor): Don't nuke/recreate, try to maintain parity. Of course values might be
+        // different but if the keys are the same, just "change" instead of delete.
         for (const key of curr.keys()) {
           remove(key);
         }
@@ -69,11 +71,11 @@
           throw new Error('curr should now be empty');
         }
         forEach(value, add);
-      } else if (value == null) {
+      } else if (value === null) {
         // Delete a specific key, e.g. "each.0" => null.
         remove(key);
       } else {
-        // Create a specific key.
+        // Create a specific key. Note that `undefined` is valid here, and creates without set.
         add(value, key);
       }
     };
@@ -242,9 +244,13 @@
           // This found an update for a key _under_ an each.
           k = m[1];
           const key = m[2];
-          this.each_[k].forEach(fn => fn(value, key));
+          const rest = m[3];  // there's more!
 
-          // TODO: yield 'rest' and pass to (all post) live objects
+          this.each_[k].forEach(fn => fn(rest ? undefined : value, key));
+
+          if (!rest) {
+            console.warn('got rest being ignored', k, key, rest);
+          }
         }
         return;  // not matched
       }
