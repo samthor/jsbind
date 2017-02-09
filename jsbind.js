@@ -105,7 +105,7 @@
 
     /**
      * @param {string} k
-     * @param {function(string)}
+     * @param {function(string)} fn
      */
     add(k, fn) {
       const more = k.split('.');
