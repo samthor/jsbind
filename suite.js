@@ -88,4 +88,17 @@ void function() {
     assert.equal(node.innerHTML, '<!-- x --><div>v300</div>');
   });
 
+  test('test map', function() {
+    const out = JSBind('<template each="x"><div>v{{y}}</div></template>', {});
+    const node = createNode(out);
+    assert.equal(node.innerHTML, '<!-- x -->');
+
+    const map = new Map();
+    map.set(1, 2);
+    map.set(3, 4);
+    out.update('x', map);
+
+    assert.equal(node.innerHTML, '<!-- x --><div>v</div><div>v</div>');
+  });
+
 }();
