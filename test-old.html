@@ -74,6 +74,9 @@
 <template id="t2">
   <h2 class$="cl">Hello, {{name}}</h2>
   <div>Name length: {{name.length}}</div>
+  <template each="emojis">
+    <div>{{$.name}}, {{$.value}}</div>
+  </template>
 </template>
 <script>
   var data = {
@@ -83,8 +86,15 @@
   var out = JSBind(t2, data);
   holder.appendChild(out.root);
 
-  // now, you can call update to update the DOM.
-  out.update('name', 'James');
+  // Now, you can call update to update the DOM. This will update all descendents, such
+  // as `name.length`.
+  out.update('name', 'Jim');
+
+  // You can also update properties to types which aren't expected.
+  out.update('name.length', 'Not really a length');
+
+  // Finally, lists or iterables also work.
+  out.update('emojis', [{name: 'Peach', value: '🍑'}, {name: 'Train', value: '🚂'}]);
 </script>
 
 <template id="t3">

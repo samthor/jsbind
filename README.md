@@ -7,6 +7,9 @@ Usage-
 <template id="t">
   <h2 class$="cl">Hello, {{name}}</h2>
   <div>Name length: {{name.length}}</div>
+  <template each="emojis">
+    <div>{{$.name}}, {{$.value}}</div>
+  </template>
 </template>
 <script>
   var data = {
@@ -23,14 +26,33 @@ Usage-
   // You can also update properties to types which aren't expected.
   out.update('name.length', 'Not really a length');
 
+  // Finally, lists or iterables also work.
+  out.update('emojis', [{name: 'Peach', value: '🍑'}, {name: 'Train', value: '🚂'}]);
+
 </script>
 ```
 
-## Notes
+When update is called, everything under the passed key is updated.
+e.g., if your template contains `a.b` and `a.c`, an update like `{a: {b: 1}}` will clear `a.c`.
 
-Possible additions-
+### Known Bugs
 
-* Array looping support (note that `{{foo.0}}` already works)
+Issues are around each templates, which are tricky.
+
+#### Each Templates
+
+* Updating `"foo.0"` works, but it will always treat the key as a string - not useful for an `Array` (or `Map` with number key)
+  * ...it should _maybe_ support updating `["foo", 0]` or some other syntax for breaking args
+* replacing a whole list recreates all DOM nodes
+  * ...it should reuse for matching keys
+* top-level data inside an each template won't exist for new DOM nodes
+  * ...it should update the `template` itself over time
+* only the value is accessible (via `$`)
+* it's impossible to access the parent of recursive each templates (`$` for my parent)
+
+### Possible Additions
+
+* Conditionals (but perhaps you should use `hidden`)
 * Computed properties (e.g., `{{foo(bar, zing)}}`)
 * Better attribute syntax (Polymer always uses `foo$="{{bar}}"`, we only support `foo$="bar"`)
 * Two-way attribute binding (e.g., `[[foo]]` as well as `{{foo}}`)

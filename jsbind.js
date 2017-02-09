@@ -45,12 +45,8 @@
         live.add(binding);
       }
 
-      if (rest !== undefined) {
-        config.binding.update('$.' + rest, value);
-      } else if (value !== undefined) {
-        // if value is undefined, it's just a poke, so ignore
-        config.binding.update('$', value);
-      }
+      const flatKey = '$' + (rest !== undefined ? '.' + rest : '');
+      config.binding.update(flatKey, value);
     }
 
     function remove(key) {
@@ -275,7 +271,7 @@
         node.run(value);
 
         for (let k in node.children) {
-          const nextValue = (value === null || value === undefined ? undefined : value[k]);
+          const nextValue = (value == null ? undefined : value[k]);
           pending.push({node: node.children[k], value: nextValue});
         }
       }
