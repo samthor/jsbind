@@ -2,25 +2,25 @@
 
 (function(scope) {
   /**
-   * @param {string} value
+   * @param {*} value
    * @this {Attr}
    */
   function bindAttribute(value) {
-    this.value = value;
+    this.value = /** @type {string} */ (value);
   }
 
   /**
-   * @param {string} value
+   * @param {*} value
    * @this {Node}
    */
   function bindTextContent(value) {
-    this.textContent = value;
+    this.textContent = /** @type {string} */ (value);
   }
 
   /**
    * @param {!HTMLTemplateElement} template
    * @param {!Node} placeholder
-   * @param {!Map} live
+   * @param {!Set<!JSBindTemplateBuilder>} live
    * @return {function(*, string)}
    */
   function buildEach(template, placeholder, live) {
@@ -32,7 +32,7 @@
       if (!config) {
         const binding = new JSBindTemplateBuilder();
         const frag = template.content.cloneNode(true);
-        convertNode(frag, binding, live);  // TODO: sub probably doesn't work (e.g. x.0.y.0)
+        convertNode(frag, binding, live);
 
         config = {
           binding,
@@ -166,7 +166,7 @@
 
       // TODO: typedef/something function?
       /**
-       * @type {!Object<function(string, *)>}
+       * @type {!Object<!Array<function(*, string)>>}
        */
       this.each_ = {};
       this.eachRe_ = false;
@@ -174,7 +174,7 @@
 
     /**
      * @param {string} k
-     * @param {function(string)} fn
+     * @param {function(*)} fn
      */
     add(k, fn) {
       const more = k.split('.');
@@ -210,7 +210,7 @@
      * @param {function(*, string)} fn
      */
     addEach(k, fn) {
-      this.add(k, fn);
+      this.add(k, /** @type {function(*)} */ (fn));
 
       // TODO: this is a bit ugly vs using nodes properly
       if (!(k in this.each_)) {
@@ -304,15 +304,16 @@
   /**
    * @template T
    * @param {(!Object<T>|!Map<string, T>|!Array<T>|null)} arg
-   * @param {function(T, string|number)} fn
+   * @param {function(T, (string|number))} fn
    */
   function forEach(arg, fn) {
     if (!arg) { return; }
     if (typeof arg.forEach === 'function') {
       arg.forEach(fn);
     } else {
-      for (let k in arg) {
-        fn(arg[k], k);
+      const o = /** @type {!Object|!Array} */ (arg);
+      for (let k in o) {
+        fn(o[k], k);
       }
     }
   }
@@ -320,7 +321,7 @@
   /**
    * @param {!Node} node to generate bindings for
    * @param {!JSBindTemplateBuilder} binding
-   * @param {!Map<!Node, {path: string}>} live
+   * @param {!Set<!JSBindTemplateBuilder>} live
    */
   function convertNode(node, binding, live) {
     const pending = [node];
@@ -363,7 +364,7 @@
     const outer = cloneArgument(code);
 
     /**
-     * @type {!Map<!Node, {path: string}>}
+     * @type {!Set<!JSBindTemplateBuilder>}
      */
     const live = new Set();
     const binding = new JSBindTemplateBuilder();
