@@ -46,7 +46,7 @@
    * @param {(HTMLElement|string)} code HTMLElement, HTMLTemplateElement or string for innerHTML
    * @return {!Node}
    */
-  function consumeUserInput(code) {
+  function cloneArgument(code) {
     if (code instanceof HTMLTemplateElement) {
       return document.importNode(code.content, true) || document.createDocumentFragment();
     } else if (code instanceof HTMLElement) {
@@ -67,38 +67,73 @@
     return fragment;
   }
 
-  /**
-   * @param {!Object<!Array<function(string)>>} binding
-   * @param {string} key
-   * @param {function(string)} helper
-   */
-  function bindingPush(binding, key, helper) {
-    let arr = binding[key];
-    if (arr === undefined) {
-      binding[key] = arr = [];
-    }
-    arr.push(helper);
-  }
 
-  /**
-   * Node in the JSBind update tree.
-   */
-  class JSBindNode {
+  class JSBindTemplateNode {
     constructor() {
-      this.children = {};
+      /** @type {!Array<function(string)>} */
       this.helpers = [];
+
+      /** @type {!Object<!JSBindTemplateNode>} */
+      this.children = {};
     }
 
-    child(x) {
-      let out = this.children[x];
+    must(x) {
+      const out = this.children[x];
       if (!out) {
-        out = this.children[x] = new JSBindNode();
+        return this.children[x] = new JSBindTemplateNode();
       }
       return out;
     }
 
-    update(value) {
+    run(value) {
       this.helpers.forEach(helper => helper(value));
+    }
+  }
+
+  /**
+   * JSBindTemplateBuilder presents JSBindTemplateNode instances, in both a flat map and a tree.
+   */
+  class JSBindTemplateBuilder {
+    constructor() {
+      this.root = new JSBindTemplateNode();
+
+      /**
+       * @type {!Object<!JSBindTemplateNode>}
+       */
+      this.all_ = {'': this.root};
+    }
+
+    /**
+     * @param {string} k
+     * @param {function(string)}
+     */
+    add(k, fn) {
+      const more = k.split('.');
+      const flatKey = [];
+
+      if (more[0] === '') {
+        more.shift();  // nb. this eats '.foo' as well as '.' or ''
+      }
+
+      let node = this.root;
+      while (more.length) {
+        const next = more.shift();
+        flatKey.push(next);
+
+        node = node.must(next);
+
+        const key = flatKey.join('.');
+        const prev = this.all_[key];
+        if (prev !== undefined && prev !== node) {
+          throw new Error('unexpected node in flat map: `' + key + '`');
+        }
+        this.all_[key] = node;
+      }
+      node.helpers.push(fn);
+    }
+
+    get(k) {
+      return this.all_[k];
     }
   }
 
@@ -106,7 +141,7 @@
 
   /**
    * @param {string} text of HTML nodes to generate bindings for
-   * @param {!Object<!Array<function(string)>>} binding
+   * @param {!JSBindTemplateBuilder} binding
    * @return {DocumentFragment}
    */
   function convertTextNode(text, binding) {
@@ -127,7 +162,7 @@
 
       const node = appendTextNode('');
       fragment.appendChild(node);
-      bindingPush(binding, match[1], bindTextContent.bind(node));
+      binding.add(match[1], bindTextContent.bind(node));
     }
     re.lastIndex = NaN;  // nb. Safari doesn't like -1
     if (!atIndex) {
@@ -143,62 +178,20 @@
 
   /**
    * @param {!Node} node to generate bindings for
-   * @param {!Object<!Array<function(string)>>} binding
+   * @param {!JSBindTemplateBuilder} binding
    */
   function convertNode(node, binding) {
     const pending = [node];
     let n;
     while ((n = pending.shift())) {
       if (n instanceof HTMLTemplateElement) {
-        if (n.getAttribute('each') === null) {
-          throw new Error('unhandled: ' + n.localName);
-        }
-
-        const template = n;
-        const placeholder = document.createComment('');
+        const placeholder = document.createComment(' template ');
         n.parentNode.replaceChild(placeholder, n);
 
-        const factory = function(value) {
-          const localBinding = {};
-          const root = template.content.cloneNode(true);
-          const fragment = document.createDocumentFragment();
-          while (root.childNodes.length) {
-            fragment.appendChild(root.childNodes[0]);
-          }
-          convertNode(fragment, localBinding);
-
-          // TODO(samthor): This is just a quick demo. But loops now cause our binding state to
-          // be mutable(-ish) over time.
-          // QQ: Do we care about 'items.0.foo'? Can just 'items' be notified?
-          // AA: I think we want specific notification. And ignore the idea that we're an array...
-          // basically 'items' becomes parent to a keyed object. You can poke any key under that.
-          // 'items.banana' being poked => creates/removes banana (undefined or not).
-          // If you poke the whole thing, items, recreate whole thing. Look at length etc.
-          if ('' in localBinding) {
-            localBinding[''].forEach(fn => fn(value));
-          }
-          return fragment;
-        };
-        const groups = [];
-
-        bindingPush(binding, n.getAttribute('each'), function(array) {
-          while (groups.length) {
-            const group = groups.shift();
-            group.forEach(node => node.remove());
-          }
-
-          let lastNode = placeholder;
-          array.forEach(value => {
-            const fragment = factory(value);
-            const group = [...fragment.childNodes];
-            placeholder.parentNode.insertBefore(fragment, lastNode.nextSibling);
-            if (group.length) {
-              lastNode = group[group.length - 1];
-            }
-            groups.push(group);
-          });
-        });
-
+        // TODO(samthor): Don't _do_ anything here. Just store it and apply later. Add to e.g...
+        //    Map<path, frag> ?
+        // Not sure how that works for subordinates. Maybe they have their own Map when instantiated.
+        // Instead of Frag, store a ListBuffer, which could also store spares.
         continue;
       }
 
@@ -212,7 +205,7 @@
       } else if (n instanceof Element) {
         const found = fetchBoundAttributes(n);
         for (const attr in found) {
-          bindingPush(binding, found[attr], bindAttribute.bind(n.attributes[attr]));
+          binding.add(found[attr], bindAttribute.bind(n.attributes[attr]));
         }
       }
     }
@@ -224,41 +217,24 @@
    * @return {{root: !Node, update: function(string, *)}}
    */
   scope['JSBind'] = function(code, opt_data) {
-    const binding = {};
+    const binding = new JSBindTemplateBuilder();
 
     // Traverse the entire DOM, finding insertion points.
-    const outer = consumeUserInput(code);
+    const outer = cloneArgument(code);
     convertNode(outer, binding);
-
-    // Builds mapNodes and the tree of updatable nodes in this JSBind.
-    const rootNode = new JSBindNode();
-    const mapNodes = {'': rootNode};
-    for (let k in binding) {
-      const more = k.split('.');
-      const flatKey = [];
-
-      let node = rootNode;
-      while (more.length) {
-        const next = more.shift();
-        flatKey.push(next);
-        node = node.child(next);
-        mapNodes[flatKey.join('.')] = node;
-      }
-      node.helpers.push(...binding[k]);
-    }
 
     /**
      * @param {string} k to update at
      * @param {*} value to update with
      */
     function update(k, value) {
-      const first = mapNodes[k || ''];
+      const first = binding.get(k || '');
       if (!first) { return; }  // invalid target
 
       const pending = [{node: first, value}];
       while (pending.length) {
         const {node, value} = pending.shift();
-        node.update(value);
+        node.run(value);
 
         for (let k in node.children) {
           const nextValue = (value === null || value === undefined ? undefined : value[k]);
