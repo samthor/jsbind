@@ -42,7 +42,7 @@
         curr.set(key, config);
         placeholder.parentNode.insertBefore(frag, placeholder);
 
-        live.set(frag, binding);
+        live.add(binding);
       }
 
       config.binding.update('$', value);
@@ -52,7 +52,7 @@
       const config = curr.get(key);
       if (config) {
         curr.delete(key);
-        live.delete(config.outer);
+        live.delete(config.binding);
         config.binding.update('$', null);  // tell children to disappear
         config.nodes.forEach(node => node.remove());
       }
@@ -365,12 +365,12 @@
     /**
      * @type {!Map<!Node, {path: string}>}
      */
-    const live = new Map();  // TODO: key isn't really used - just used as key (fragment!)
+    const live = new Set();
     const binding = new JSBindTemplateBuilder();
 
     // Traverse the entire DOM, finding insertion points.
     convertNode(outer, binding, live);
-    live.set(outer, binding);
+    live.add(binding);
 
     /**
      * @param {string} k to update at
@@ -378,7 +378,7 @@
      */
     function update(k, value) {
         // This always updates, because every outer can still have top-level args.
-      live.forEach((binding, node) => binding.update(k, value));
+      live.forEach(binding => binding.update(k, value));
     }
 
     update('', opt_data);
