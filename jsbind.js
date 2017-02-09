@@ -248,7 +248,7 @@
 
           this.each_[k].forEach(fn => fn(rest ? undefined : value, key));
 
-          if (!rest) {
+          if (rest) {
             console.warn('got rest being ignored', k, key, rest);
           }
         }
