@@ -86,6 +86,27 @@ void function() {
     out.update('x', [1]);
     out.update('y', 300);  // TODO: we shoudn't need to do this: keep "template" around.
     assert.equal(node.innerHTML, '<div>v300</div><!-- x -->');
+
+    out.update('x', []);
+    assert.equal(node.innerHTML, '<!-- x -->');
+  });
+
+  test('test nuke/add each', function() {
+    const out = JSBind('<template each="x"><div>v{{y}}</div></template>', {});
+    const node = createNode(out);
+    assert.equal(node.innerHTML, '<!-- x -->');
+
+    out.update('x.banana.zing', 1);
+    assert.equal(node.innerHTML, '<div>v</div><!-- x -->');
+
+    out.update('x.apple', 1);
+    assert.equal(node.innerHTML, '<div>v</div><div>v</div><!-- x -->');
+
+    out.update('x.banana.whatever.ignored', 1);
+    assert.equal(node.innerHTML, '<div>v</div><div>v</div><!-- x -->');
+
+    out.update('x.banana', null);
+    assert.equal(node.innerHTML, '<div>v</div><!-- x -->');
   });
 
   test('test map', function() {

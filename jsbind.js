@@ -166,6 +166,7 @@
        * @type {!Object<function(string, *)>}
        */
       this.each_ = {};
+      this.eachRe_ = false;
     }
 
     /**
@@ -198,15 +199,47 @@
     }
 
     /**
+     * @param {string} k
+     * @param {function(*, string)} fn
+     */
+    addEach(k, fn) {
+      this.add(k, fn);
+
+      // TODO: this is a bit ugly vs using nodes properly
+      if (!(k in this.each_)) {
+        this.each_[k] = [];
+      }
+      this.each_[k].push(fn);
+
+      this.eachRe_ = null;
+    }
+
+    /**
      * @param {string} k to update at
      * @param {*} value to update with
      */
     update(k, value) {
       const first = this.all_[k];
       if (!first) {
-        // TODO: If this is e.g., "x.0.banana", and "x" is an each, autocreate "x.0".
-        // TODO: Use a regex (?) to make this matching faster, e.g. /^x\.\w+\./
-        return;  // invalid target
+        if (this.eachRe_ === null) {
+          // TODO: each could still break regep
+          const safe = Object.keys(this.each_).map(key => key.replace('.', '\\.'));
+          const s = '^(' + safe.join('|') + ')\\.(\\w+)(?:\\.(.*)|)$';
+          this.eachRe_ = new RegExp(s);
+        } else if (!this.eachRe_) {
+          return;  // no each here
+        }
+
+        const m = this.eachRe_.exec(k);
+        if (m) {
+          // This found an update for a key _under_ an each.
+          k = m[1];
+          const key = m[2];
+          this.each_[k].forEach(fn => fn(value, key));
+
+          // TODO: yield 'rest' and pass to (all post) live objects
+        }
+        return;  // not matched
       }
 
       const pending = [{node: first, value}];
@@ -294,7 +327,7 @@
 
         const placeholder = document.createComment(' ' + each + ' ');
         n.parentNode.replaceChild(placeholder, n);
-        binding.add(each, buildEach(n, placeholder, live));
+        binding.addEach(each, buildEach(n, placeholder, live));
         continue;
       }
 
@@ -326,7 +359,7 @@
      * @type {!Map<!Node, {path: string}>}
      */
     const live = new Map();  // TODO: key isn't really used - just used as key (fragment!)
-    const binding = new JSBindTemplateBuilder(live);
+    const binding = new JSBindTemplateBuilder();
 
     // Traverse the entire DOM, finding insertion points.
     convertNode(outer, binding, live);
@@ -343,6 +376,7 @@
         // TODO: always update, ignoring path: flat data inside map
         // TODO: path could be e.g., "array.0", maybe?
         config.binding.update(k, value);
+
       });
     }
 
