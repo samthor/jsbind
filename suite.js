@@ -78,14 +78,14 @@ void function() {
   test('test array', function() {
     const out = JSBind('<template each="x"><div>v{{y}}</div></template>', {x: [1, 2, 3], y: 100});
     const node = createNode(out);
-    assert.equal(node.innerHTML, '<!-- x --><div>v100</div><div>v100</div><div>v100</div>');
+    assert.equal(node.innerHTML, '<div>v100</div><div>v100</div><div>v100</div><!-- x -->');
 
     out.update('y', 200);
-    assert.equal(node.innerHTML, '<!-- x --><div>v200</div><div>v200</div><div>v200</div>');
+    assert.equal(node.innerHTML, '<div>v200</div><div>v200</div><div>v200</div><!-- x -->');
 
     out.update('x', [1]);
     out.update('y', 300);  // TODO: we shoudn't need to do this: keep "template" around.
-    assert.equal(node.innerHTML, '<!-- x --><div>v300</div>');
+    assert.equal(node.innerHTML, '<div>v300</div><!-- x -->');
   });
 
   test('test map', function() {
@@ -98,7 +98,7 @@ void function() {
     map.set(3, 4);
     out.update('x', map);
 
-    assert.equal(node.innerHTML, '<!-- x --><div>v</div><div>v</div>');
+    assert.equal(node.innerHTML, '<div>v</div><div>v</div><!-- x -->');
   });
 
 }();

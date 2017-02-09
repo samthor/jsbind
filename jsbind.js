@@ -25,32 +25,53 @@
    */
   function buildEach(template, placeholder, live) {
     const curr = new Map();
+    const each = template.getAttribute('each');
+
+    function add(value, key) {
+      if (curr.has(key)) { return; }
+
+      const binding = new JSBindTemplateBuilder();
+      const frag = template.content.cloneNode(true);
+      convertNode(frag, binding, live);  // TODO: sub probably doesn't work (e.g. x.0.y.0)
+
+      const config = {
+        outer: frag,
+        nodes: [...frag.children],  // set before insertion and children disappearing
+      };
+      curr.set(key, config);
+      placeholder.parentNode.insertBefore(frag, placeholder);
+
+      live.set(frag, {path: each + '.' + key, binding});
+
+      // TODO: value ignored, do we care?
+    }
+
+    function remove(key) {
+      const config = curr.get(key);
+      if (config) {
+        curr.delete(key);
+        live.delete(config.outer);
+        config.nodes.forEach(node => node.remove());
+      }
+    }
 
     return (value, key) => {
       if (key === undefined) {
-        curr.forEach((nodes, curr) => {
-          live.delete(curr);
-          nodes.forEach(node => node.remove());
-        });
-        curr.clear();
-
-        const before = placeholder.nextSibling;
-        forEach(value, (_, k) => {
-          const binding = new JSBindTemplateBuilder();
-          const frag = template.content.cloneNode(true);
-          convertNode(frag, binding, live);  // TODO: sub probably doesn't work (e.g. x.0.y.0)
-
-          curr.set(frag, [...frag.children]);  // set before insertion and children disappearing
-          placeholder.parentNode.insertBefore(frag, before);
-
-          live.set(frag, {path: key + '.' + k, binding});
-        });
+        // This is a set of the each key directly, presumably with a new Map/Array etc.
+        // TODO(samthor): Don't nuke/recreate, try to maintain parity.
+        for (const key of curr.keys()) {
+          remove(key);
+        }
+        if (curr.size) {
+          throw new Error('curr should now be empty');
+        }
+        forEach(value, add);
       } else if (value == null) {
-        // thing clear
-        throw new Error('TODO: implement specific key clear');
+        // Delete a specific key, e.g. "each.0" => null.
+        remove(key);
       } else {
-        // thing create/update
-        throw new Error('TODO: implement specific key implicit creation');
+        // Create a specific key.
+        add(value, key);
       }
     };
   }
@@ -317,7 +338,7 @@
      */
     function update(k, value) {
       live.forEach((config, node) => {
-        // This always updates, because every outer
+        // This always updates, because every outer can still have top-level args.
 
         // TODO: always update, ignoring path: flat data inside map
         // TODO: path could be e.g., "array.0", maybe?
