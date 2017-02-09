@@ -144,13 +144,16 @@ void function() {
     });
 
     test('test recurse', function() {
-      const data = {x: [
-        {name: 'Hello', stuff: [1,2,3]},
-        {name: 'There', stuff: [4,5,6]},
-      ]};
+      const data = {x: {
+        '0': {name: 'Hello', stuff: {'0': 1, '1': 2, '2': 3}},
+        '1': {name: 'There', stuff: {'0': 4, '1': 5, '2': 6}},
+      }};
       const out = JSBind('<template each="x"><div>{{$.name}}</div><template each="$.stuff">{{$}}<br /></template></template>', data);
       const node = createNode(out);
       assert.equal(node.innerHTML, '<div>Hello</div>1<br>2<br>3<br><!-- $.stuff --><div>There</div>4<br>5<br>6<br><!-- $.stuff --><!-- x -->');
+
+      out.update('x.1.stuff.1', 100);
+      assert.equal(node.innerHTML, '<div>Hello</div>1<br>2<br>3<br><!-- $.stuff --><div>There</div>4<br>100<br>6<br><!-- $.stuff --><!-- x -->');
 
       out.update('x', [{name: 'What'}]);
       assert.equal(node.innerHTML, '<div>What</div><!-- $.stuff --><!-- x -->');

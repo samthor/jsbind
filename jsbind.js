@@ -27,7 +27,7 @@
     const curr = new Map();
     const each = template.getAttribute('each');
 
-    function add(value, key) {
+    function add(value, key, rest) {
       let config = curr.get(key);
       if (!config) {
         const binding = new JSBindTemplateBuilder();
@@ -45,8 +45,12 @@
         live.add(binding);
       }
 
-      if (value === undefined) { return; }  // this is a poke-safe update
-      config.binding.update('$', value);
+      if (rest !== undefined) {
+        config.binding.update('$.' + rest, value);
+      } else if (value !== undefined) {
+        // if value is undefined, it's just a poke, so ignore
+        config.binding.update('$', value);
+      }
     }
 
     function remove(key) {
@@ -59,8 +63,13 @@
       }
     }
 
-    return (value, key) => {
+    // TODO: make this into a class helper?
+    return (value, key, rest) => {
       if (key === undefined) {
+        if (rest !== undefined) {
+          throw new TypeError('can\'t pass rest with each replace');
+        }
+
         // This is a set of the each key directly, presumably with a new Map/Array etc.
         // TODO(samthor): Don't nuke/recreate, try to maintain parity. Of course values might be
         // different but if the keys are the same, just "change" instead of delete.
@@ -70,13 +79,14 @@
         if (curr.size) {
           throw new Error('curr should now be empty');
         }
-        forEach(value, add);
-      } else if (value === null) {
+        forEach(value, (value, key) => add(value, key, undefined));  // rest must be undefined
+      } else if (value === null && rest === undefined) {
         // Delete a specific key, e.g. "each.0" => null.
         remove(key);
       } else {
         // Create a specific key. Note that `undefined` is valid here, and creates without set.
-        add(value, key);
+        // Rest is passed to allow implicit creation/update of some subpath.
+        add(value, key, rest);
       }
     };
   }
@@ -129,6 +139,14 @@
       fragment.appendChild(holder.childNodes[0]);
     }
     return fragment;
+  }
+
+  /**
+   * @param {string} s
+   * @return escaped version of string suitable for regexp
+   */
+  function escapeReLiteral(s) {
+    return s.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, '\\$&');
   }
 
 
@@ -232,7 +250,7 @@
       if (!first) {
         if (this.eachRe_ === null) {
           // TODO: each could still break regep
-          const safe = Object.keys(this.each_).map(key => key.replace('.', '\\.'));
+          const safe = Object.keys(this.each_).map(escapeReLiteral);
           const s = '^(' + safe.join('|') + ')\\.(\\w+)(?:\\.(.*)|)$';
           this.eachRe_ = new RegExp(s);
         } else if (!this.eachRe_) {
@@ -246,11 +264,7 @@
           const key = m[2];
           const rest = m[3];  // there's more!
 
-          this.each_[k].forEach(fn => fn(rest ? undefined : value, key));
-
-          if (rest) {
-            console.warn('got rest being ignored', k, key, rest);
-          }
+          this.each_[k].forEach(fn => fn(value, key, rest));
         }
         return;  // not matched
       }
