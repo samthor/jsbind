@@ -282,12 +282,14 @@
 
   /**
    * @param {string} text of HTML nodes to generate bindings for
-   * @param {!JSBindTemplateBuilder} binding
+   * @param {function(string, !Text, number)} callback for {{name}} and newly created node
    * @return {DocumentFragment}
    */
-  function convertTextNode(text, binding) {
+  function convertTextNode(text, callback) {
     const fragment = document.createDocumentFragment();
+    let count = -1;  // index in newly created, replaced node
     function appendTextNode(text) {
+      ++count;
       const node = document.createTextNode(text);
       fragment.appendChild(node);
       return node;
@@ -303,7 +305,7 @@
 
       const node = appendTextNode('');
       fragment.appendChild(node);
-      binding.add(match[1], bindTextContent.bind(node));
+      callback(match[1], node, count);
     }
     re.lastIndex = NaN;  // nb. Safari doesn't like -1
     if (!atIndex) {
@@ -358,7 +360,9 @@
       pending.push(...n.childNodes);
 
       if (n instanceof Text) {
-        const out = convertTextNode(n.wholeText, binding);
+        const out = convertTextNode(n.wholeText, (bound, node, i) => {
+          binding.add(bound, bindTextContent.bind(node));
+        });
         if (out) {
           n.parentNode.replaceChild(out, n);
         }
