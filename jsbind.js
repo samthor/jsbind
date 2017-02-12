@@ -196,25 +196,27 @@
       const more = k.split('.');
       const flatKey = [];
 
+      let node = this.root;
       if (more[0] === '') {
         more.shift();  // nb. this eats '.foo' as well as '.' or ''
+      } else if (more[0][0] === '$') {
+        const ekey = more.shift();
+        node = this.all_[ekey];  // start new root for $-prefix
+        if (node === undefined) {
+          this.all_[ekey] = node = new JSBindTemplateNode();
+        }
+        flatKey.push(ekey);
       }
 
-      let node = this.root;
       while (more.length) {
         const next = more.shift();
+        node = node.must(next);
         flatKey.push(next);
+
         const key = flatKey.join('.');
-
-        if (!next.startsWith('$')) {
-          node = node.must(next);
-        } else {
-          node = this.all_[key] || new JSBindTemplateNode();  // start new root for $-prefix
-        }
-
         const prev = this.all_[key];
         if (prev !== undefined && prev !== node) {
-          throw new Error('unexpected node in flat map: `' + key + '`');
+          throw new Error(`unexpected node in flat map: '${key}'`);
         }
         this.all_[key] = node;
       }
