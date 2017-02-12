@@ -346,45 +346,89 @@
     }
   }
 
-  /**
-   * Parses a HTML node as a template so that it can be quickly cloned.
-   *
-   * @param {!Node} node to generate bindings for
-   */
-  function parseNode(node) {
-    function makePath(curr) {
-      const out = [];
-      while (curr && curr.index !== undefined) {
-        out.unshift(curr.index);
-        curr = curr.parent;
-      }
-      return out;
+  class JSBindScope {
+    constructor() {
+      /**
+       * @private {!Map<!Node, !WeakMap<(!Node|!Attr)>}
+       */
+      this.cache_ = new Map();
     }
 
-    const pending = [{node, index: undefined, parent: null}];
-    let c;
-    while ((c = pending.shift())) {
-      const node = c.node;
-      const path = makePath(c);
+    /**
+     * Parses a HTML node into JSBindScope.
+     */
+    parseNode(node) {
+      const pending = [node];
+      let actualRoot = true;
+      let root;
+      while ((root = pending.shift())) {
+        const extra = this.parseNode_(root, actualRoot);
+        actualRoot = false;
+        pending.push(...extra);
+      }
+    }
 
-      if (node instanceof DocumentFragment) {
-        // this is fine as top
-        if (c.parent !== null) {
-          throw new Error('zero path should be DF: ' + node);
+    cloneNode(node) {
+      const x = this.cache_.get(node);
+      const clone = node.cloneNode(true);
+
+      x.forEach((bound, o) => {
+        const el = o.ownerElement || o;
+
+        if (o instanceof Text) {
+          // generic node
+        } else if (o instanceof Comment) {
+        } else {
+          console.info('got object', o, bound);
         }
-      } else if (node instanceof Text) {
-        // TODO: split me and increase index sizes, including neighbours (!)
-        // TODO: first pass do matching?
-      } else if (node instanceof Element) {
-        // TODO: as normal? ish?
-      } else {
-        throw new Error('unexpected node type: ' + node);
+      });
+
+      return clone;
+    }
+
+    /**
+     * Parses a HTML node as a template so that it can be quickly cloned.
+     *
+     * @param {!Node} node to generate bindings for
+     * @param {boolean} actualRoot whether this is the actual template root
+     * @return {!Array<!HTMLTemplateNode>} additional template nodes found
+     */
+    parseNode_(node, actualRoot) {
+      if (this.cache_.has(node)) {
+        throw new Error('can\'t parse duplicate node: ' + node);
+      }
+      const m = new Map();
+      this.cache_.set(node, m);
+
+      const extra = [];
+
+      const pending = [...node.childNodes];
+      let n;
+      while ((n = pending.shift())) {
+        if (n instanceof HTMLTemplateElement) {
+          const each = n.getAttribute('each');
+          const placeholder = document.createComment(` ${each} `);
+          n.parentNode.replaceChild(placeholder, n);
+
+          m.set(placeholder, each);  // TODO: we throw away template el here
+          extra.push(n);
+          continue;
+        } else if (n instanceof Text) {
+          const out = convertTextNode(n.wholeText, (bound, node, i) => m.set(node, bound));
+          n.parentNode.replaceChild(out, n);
+          continue;
+        } else if (n instanceof Element) {
+          const found = fetchBoundAttributes(n);
+          for (let k in found) {
+            m.set(n, found);  // set iff any bound attr found
+            break;
+          }
+        }
+
+        pending.push(...n.childNodes);
       }
 
-      // nb. Text change can add nodes?
-      pending.push(...[...node.childNodes].map((child, i) => {
-        return {node: child, index: i, parent: node};
-      }));
+      return extra;
     }
   }
 
@@ -402,9 +446,6 @@
         if (each === undefined) {
           throw new Error('expected template each');
         }
-
-        const frag = n.content.cloneNode(true);
-        parseNode(frag);
 
         const placeholder = document.createComment(' ' + each + ' ');
         n.parentNode.replaceChild(placeholder, n);
@@ -435,6 +476,12 @@
    */
   scope['JSBind'] = function(code, opt_data) {
     const outer = cloneArgument(code);
+    const scope = new JSBindScope();
+
+    const o = outer.cloneNode(true);
+    scope.parseNode(o);
+    const t = scope.cloneNode(o);
+    console.warn('got root clone', t);
 
     /**
      * @type {!Set<!JSBindTemplateBuilder>}
