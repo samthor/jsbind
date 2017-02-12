@@ -21,7 +21,7 @@
    * @param {!HTMLTemplateElement} template
    * @param {!Node} placeholder
    * @param {!Set<!JSBindTemplateBuilder>} live
-   * @return {function(*, string)}
+   * @return {function(*, string, string)}
    */
   function buildEach(template, placeholder, live) {
     const curr = new Map();
@@ -146,15 +146,23 @@
   }
 
 
+  /**
+   * JSBindTemplateNode contains helpers for a data key. e.g., the key "foo" might update several
+   * parts of HTML. It also contains children, e.g., "foo" => "foo.length".
+   */
   class JSBindTemplateNode {
     constructor() {
-      /** @type {!Array<function(string)>} */
+      /** @type {!Array<function(*)>} */
       this.helpers = [];
 
       /** @type {!Object<!JSBindTemplateNode>} */
       this.children = {};
     }
 
+    /**
+     * @param {string} x
+     * @return {!JSBindTemplateNode}
+     */
     must(x) {
       const out = this.children[x];
       if (!out) {
@@ -163,6 +171,9 @@
       return out;
     }
 
+    /**
+     * @param {*} value
+     */
     run(value) {
       this.helpers.forEach(helper => helper(value));
     }
@@ -182,7 +193,7 @@
 
       // TODO: typedef/something function?
       /**
-       * @type {!Object<!Array<function(*, string)>>}
+       * @type {!Object<!Array<function(*, string, string)>>}
        */
       this.each_ = {};
       this.eachRe_ = false;
@@ -225,7 +236,7 @@
 
     /**
      * @param {string} k
-     * @param {function(*, string)} fn
+     * @param {function(*, string, string)} fn
      */
     addEach(k, fn) {
       this.add(k, /** @type {function(*)} */ (fn));
@@ -320,7 +331,7 @@
 
   /**
    * @template T
-   * @param {(!Object<T>|!Map<string, T>|!Array<T>|null)} arg
+   * @param {(!Object<T>|!Map<(string|number), T>|!Array<T>|null)} arg
    * @param {function(T, (string|number))} fn
    */
   function forEach(arg, fn) {
