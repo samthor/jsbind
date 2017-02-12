@@ -283,7 +283,7 @@
   /**
    * @param {string} text of HTML nodes to generate bindings for
    * @param {function(string, !Text, number)} callback for {{name}} and newly created node
-   * @return {DocumentFragment}
+   * @return {!DocumentFragment}
    */
   function convertTextNode(text, callback) {
     const fragment = document.createDocumentFragment();
@@ -308,9 +308,6 @@
       callback(match[1], node, count);
     }
     re.lastIndex = NaN;  // nb. Safari doesn't like -1
-    if (!atIndex) {
-      return null;  // don't do anything, no matches
-    }
 
     const tail = text.substring(atIndex);
     if (tail.length) {
@@ -363,9 +360,7 @@
         const out = convertTextNode(n.wholeText, (bound, node, i) => {
           binding.add(bound, bindTextContent.bind(node));
         });
-        if (out) {
-          n.parentNode.replaceChild(out, n);
-        }
+        n.parentNode.replaceChild(out, n);
       } else if (n instanceof Element) {
         const found = fetchBoundAttributes(n);
         for (const attr in found) {
