@@ -24,7 +24,7 @@
 
 <div id="holder">
 </div>
-
+<!--
 <script>
 
   function observe(o, fn) {
@@ -114,6 +114,22 @@
  out.update('items', [7,8,9,10, 'hello']);
 
 </script>
+-->
+<script>
+  var out = JSBind('<hr /> hello {{sam}} <span id$="sam">x</span><template each="names"> [{{$}}] </template>');
+
+  var key = out.scope.t_.keys().next().value;
+
+  // n.binding.update('names', ['bob', 'test']);
+  // n.binding.update('sam', 'name');
+
+  out.scope.update('names', [1,2]);
+  n = out.scope.clone(key);
+
+  holder.appendChild(n.node);
+
+</script>
+
 
 </body>
 </html>

@@ -25,22 +25,33 @@
    */
   function buildEach(template, placeholder, live) {
     const curr = new Map();
-    const each = template.getAttribute('each');
 
     function add(value, key, rest) {
       let config = curr.get(key);
       if (!config) {
-        const binding = new JSBindTemplateBuilder();
-        const t = template.cloneNode(true);
-        convertNode(t, binding, live);
+        // FIXME FIXME FIXME template as 'builder'
+        let binding;
+        let t;
+        if (typeof template === 'function') {
+          const out = template();
+          binding = out.binding;
+          t = out.node;
+        } else {
+          // TODO: old path
+          binding = new JSBindTemplateBuilder();
+          t = template.cloneNode(true);
+          convertNode(t, binding, live);
+          t = t.content;
+        }
+
 
         config = {
           binding,
-          outer: t.content,
-          nodes: [...t.content.childNodes],  // set before insertion and children disappearing
+          outer: t,
+          nodes: [...t.childNodes],  // set before insertion and children disappearing
         };
         curr.set(key, config);
-        placeholder.parentNode.insertBefore(t.content, placeholder);
+        placeholder.parentNode.insertBefore(t, placeholder);
 
         live.add(binding);
       }
@@ -384,12 +395,151 @@
     }
   }
 
+  class JSBindScope {
+    constructor(code) {
+
+      /**
+       * @type {!WeakMap<!Node, *>}}
+       */
+      this.baseEach_ = new WeakMap();
+
+      /**
+       * @type {!Set<!JSBindTemplateBuilder>}
+       */
+      this.live_ = new Set();
+
+      /**
+       * @private {!Map<!HTMLTemplateElement, !JSBindTemplateBuilder>}
+       */
+      this.t_ = new Map();
+
+      /**
+       * @private {!WeakMap<!Node, *>}
+       */
+      this.bind_ = new WeakMap();
+
+      const outer = cloneArgument(code);
+      this.parseNode_(outer);
+
+      /**
+       * @type {!JSBindTemplateBuilder}
+       */
+      this.root = this.t_.get(outer);
+    }
+
+    /**
+     * @param {string} k to update at
+     * @param {*} value to update with
+     */
+    update(k, value) {
+      this.t_.forEach(binding => binding.update(k, value));
+      this.live_.forEach(binding => binding.update(k, value));
+    }
+
+    /**
+     * @param {!HTMLTemplateElement} node
+     */
+    parseNode_(node) {
+      const binding = new JSBindTemplateBuilder();
+      this.t_.set(node, binding);
+
+      const pending = [...node.content.childNodes];
+      while ((node = pending.shift())) {
+        if (node instanceof HTMLTemplateElement) {
+          const each = node.getAttribute('each');
+          if (each === undefined) {
+            throw new Error('expected template each');
+          }
+
+          const placeholder = document.createComment(' ' + each + ' ');
+          node.parentNode.replaceChild(placeholder, node);
+          this.bind_.set(placeholder, node);
+
+          const localNode = node;
+          const builder = () => {
+            console.info('building', localNode, this.t_.get(localNode));
+            return this.clone(localNode);
+          };
+
+          binding.addEach(each, buildEach(builder, placeholder, this.live_));
+
+          this.parseNode_(node);
+        } else if (node instanceof Text) {
+          const out = convertTextNode(node.textContent, (bound, t, i) => {
+            binding.add(bound, bindTextContent.bind(t));
+            this.bind_.set(t, bound);
+          });
+          node.parentNode.replaceChild(out, node);
+        } else if (node instanceof Element) {
+          const found = fetchBoundAttributes(node);
+
+          for (const attr in found) {
+            for (const attr in found) {
+              binding.add(found[attr], bindAttribute.bind(node.attributes[attr]));
+            }
+            this.bind_.set(node, found);
+            break;  // for loop to guard empty Object
+          }
+
+          pending.push(...node.childNodes);
+        } else {
+          // ignore, probably a comment
+        }
+      }
+    }
+
+    /**
+     * @param {!HTMLTemplateElement}
+     */
+    clone(template) {
+      const binding = new JSBindTemplateBuilder();
+      return {node: this.cloneNode_(template.content, binding), binding};
+    }
+
+    /**
+     * @param {!Node} node
+     * @param {!JSBindTemplateBuilder) binding
+     * @return {!DocumentFragment}
+     */
+    cloneNode_(node, binding) {
+      const out = node.cloneNode(false);
+      const data = this.bind_.get(node);
+
+      if (data) {
+        if (node instanceof Comment) {
+          const each = data.getAttribute('each');
+          console.info('got comment in clone', node);
+
+          const builder = () => {
+            console.info('building node', data);
+            return this.clone(data);
+          };
+
+          binding.addEach(each, buildEach(builder, out, this.live_));
+        } else if (node instanceof Text) {
+          binding.add(data, bindTextContent.bind(out));
+        } else if (node instanceof Element) {
+          for (const attr in data) {
+            binding.add(data[attr], bindAttribute.bind(out.attributes[attr]));
+          }
+        } else {
+          throw new TypeError('unexpected data for node', node);
+        }
+      }
+
+      [...node.childNodes].map(n => this.cloneNode_(n, binding)).forEach(n => out.appendChild(n));
+      return out;
+    }
+  }
+
   /**
    * @param {(HTMLElement|string)} code
    * @param {*=} opt_data
    * @return {{root: !Node, update: function(string, *)}}
    */
   scope['JSBind'] = function(code, opt_data) {
+    const scope = new JSBindScope(code);
+
     const outer = cloneArgument(code);
 
     /**
@@ -409,9 +559,10 @@
     function update(k, value) {
         // This always updates, because every outer can still have top-level args.
       live.forEach(binding => binding.update(k, value));
+      scope.update(k, value);
     }
 
     update('', opt_data);
-    return {root: outer.content, update};
+    return {root: outer.content, update, scope};
   };
 }(window));
