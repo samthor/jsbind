@@ -65,15 +65,17 @@
         if (rest !== undefined) {
           throw new TypeError('can\'t pass rest with each replace');
         }
-
-        // This is a set of the each key directly, presumably with a new Map/Array etc.
-        // TODO(samthor): Don't nuke/recreate, try to maintain parity. Of course values might be
-        // different but if the keys are the same, just "change" instead of delete.
+        // |value| is an iterable. Find its keys and remove newly missing ones, before upserting
+        // everything.
+        const have = new Set();
+        forEach(value, (value, key) => have.add(key));  // may not be a real Map or Set etc.
         for (const key of curr.keys()) {
-          remove(key);
+          if (!have.has(key)) {
+            remove(key);
+          }
         }
-        if (curr.size) {
-          throw new Error('curr should now be empty');
+        if (curr.size > have.size) {
+          throw new Error('curr should now have equal or fewer than new key set');
         }
         forEach(value, (value, key) => add(value, key, undefined));  // rest must be undefined
       } else if (value === null && rest === undefined) {

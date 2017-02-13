@@ -43,8 +43,6 @@ Issues are around each templates, which are tricky.
 
 * Updating `"foo.0"` works, but it will always treat the key as a string - not useful for an `Array` (or `Map` with number key)
   * ...it should _maybe_ support updating `["foo", 0]` or some other syntax for breaking args
-* replacing a whole list recreates all DOM nodes
-  * ...it should reuse for matching keys
 * top-level data inside an each template won't exist for new DOM nodes
   * ...it should update the `template` itself over time
 * only the value is accessible (via `$`)
@@ -52,7 +50,7 @@ Issues are around each templates, which are tricky.
 
 ### Possible Additions
 
-* Conditionals (but perhaps you should use `hidden`)
+* Conditionals (but perhaps you should use `hidden` or other attributes instead)
 * Computed properties (e.g., `{{foo(bar, zing)}}`)
 * Better attribute syntax (Polymer always uses `foo$="{{bar}}"`, we only support `foo$="bar"`)
 * Two-way attribute binding (e.g., `[[foo]]` as well as `{{foo}}`)
