@@ -31,16 +31,16 @@
       let config = curr.get(key);
       if (!config) {
         const binding = new JSBindTemplateBuilder();
-        const frag = template.content.cloneNode(true);
-        convertNode(frag, binding, live);
+        const t = template.cloneNode(true);
+        convertNode(t, binding, live);
 
         config = {
           binding,
-          outer: frag,
-          nodes: [...frag.childNodes],  // set before insertion and children disappearing
+          outer: t.content,
+          nodes: [...t.content.childNodes],  // set before insertion and children disappearing
         };
         curr.set(key, config);
-        placeholder.parentNode.insertBefore(frag, placeholder);
+        placeholder.parentNode.insertBefore(t.content, placeholder);
 
         live.add(binding);
       }
@@ -114,27 +114,27 @@
    * This is just a helper for user input of strings or other HTML elements.
    *
    * @param {(HTMLElement|string)} code HTMLElement, HTMLTemplateElement or string for innerHTML
-   * @return {!Node}
+   * @return {!HTMLTemplateElement}
    */
   function cloneArgument(code) {
     if (code instanceof HTMLTemplateElement) {
-      return document.importNode(code.content, true) || document.createDocumentFragment();
+      return code.cloneNode(true);
     } else if (code instanceof HTMLElement) {
-      return document.cloneNode(true);
-    }
+      const t = document.createElement('template');
+      for (let i = 0, curr; curr = code.childNodes[i]; ++i) {
+        t.appendChild(curr.cloneNode(true));
+      }
+      return t;
+    } else {
+      code = code.valueOf();
+      if (typeof code !== 'string') {
+        throw new TypeError('expected HTMLTemplateElement, HTMLElement or string');
+      }
 
-    code = code.valueOf();
-    if (typeof code !== 'string') {
-      throw new TypeError('expected HTMLTemplateElement, HTMLElement or string');
+      const t = document.createElement('template');
+      t.innerHTML = code;
+      return t;
     }
-
-    const fragment = document.createDocumentFragment();
-    const holder = document.createElement('div');
-    holder.innerHTML = code;
-    while (holder.childNodes.length) {
-      fragment.appendChild(holder.childNodes[0]);
-    }
-    return fragment;
   }
 
   /**
@@ -352,32 +352,31 @@
    * @param {!Set<!JSBindTemplateBuilder>} live
    */
   function convertNode(node, binding, live) {
-    const pending = [node];
-    let n;
-    while ((n = pending.shift())) {
-      if (n instanceof HTMLTemplateElement) {
-        const each = n.getAttribute('each');
+    const pending = [...node.content.childNodes];
+    while ((node = pending.shift())) {
+      if (node instanceof HTMLTemplateElement) {
+        const each = node.getAttribute('each');
         if (each === undefined) {
           throw new Error('expected template each');
         }
 
         const placeholder = document.createComment(' ' + each + ' ');
-        n.parentNode.replaceChild(placeholder, n);
-        binding.addEach(each, buildEach(n, placeholder, live));
+        node.parentNode.replaceChild(placeholder, node);
+        binding.addEach(each, buildEach(node, placeholder, live));
         continue;
       }
 
-      pending.push(...n.childNodes);
+      pending.push(...node.childNodes);
 
-      if (n instanceof Text) {
-        const out = convertTextNode(n.wholeText, (bound, node, i) => {
-          binding.add(bound, bindTextContent.bind(node));
+      if (node instanceof Text) {
+        const out = convertTextNode(node.wholeText, (bound, t, i) => {
+          binding.add(bound, bindTextContent.bind(t));
         });
-        n.parentNode.replaceChild(out, n);
-      } else if (n instanceof Element) {
-        const found = fetchBoundAttributes(n);
+        node.parentNode.replaceChild(out, node);
+      } else if (node instanceof Element) {
+        const found = fetchBoundAttributes(node);
         for (const attr in found) {
-          binding.add(found[attr], bindAttribute.bind(n.attributes[attr]));
+          binding.add(found[attr], bindAttribute.bind(node.attributes[attr]));
         }
       }
     }
@@ -411,6 +410,6 @@
     }
 
     update('', opt_data);
-    return {root: outer, update};
+    return {root: outer.content, update};
   };
 }(window));

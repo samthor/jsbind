@@ -86,7 +86,7 @@ void function() {
       assert.equal(node.innerHTML, '<div>v200</div><div>v200</div><div>v200</div><!-- x -->');
 
       out.update('x', [1]);
-      out.update('y', 300);  // TODO: we shoudn't need to do this: keep "template" around.
+//      out.update('y', 300);  // TODO: we shoudn't need to do this: keep "template" around.
       assert.equal(node.innerHTML, '<div>v300</div><!-- x -->');
 
       out.update('x', []);
