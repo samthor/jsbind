@@ -1,3 +1,5 @@
+**Update: I wrote this a long time ago.**
+You should use [lit-html](https://lit-html.polymer-project.org/) instead.
 
 JSBind is a quick tool to generate HTML binding helpers.
 
